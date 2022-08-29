@@ -497,9 +497,14 @@ Function Invoke-VariableJSONLoad
         }
         elseif ($Variable.name -match "APIKey")
         {
+
+            $SecureKey = ConvertTo-SecureString $Variable.Value.SecureKey
+
+            Write-Debug $SecureKey
+
             $APIKey = [PSCustomObject]@{
                 "ID" = $Variable.value.id
-                "Key" = (New-Object System.Management.Automation.PsCredential("SecureToken", $Variable.value.key)).GetNetworkCredential().Password
+                "Key" = (New-Object System.Management.Automation.PsCredential("SecureToken",$SecureKey)).GetNetworkCredential().Password
             }
 
             $Variable.value = $APIKey
