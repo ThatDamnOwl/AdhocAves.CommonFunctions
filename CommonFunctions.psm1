@@ -388,6 +388,7 @@ Function Invoke-VariableJSONSave
 
     foreach ($Variable in $Variables)
     {
+        Write-Debug $Variable.name
         if ($Variable.value -ne $null)
         {
             Write-Debug "$($Variable.value.GetType().tostring())"
@@ -426,6 +427,28 @@ Function Invoke-VariableJSONSave
                         "Attributes" = $Variable.Attributes
                     }
                     $OutVars += $NewTokenObject
+                    Write-Debug $OutVars.count
+                }
+            }
+            elseif ($Variable.name -match "APIKey")
+            {
+                if ($Variable.value -ne $null)
+                {
+                    Write-Debug "API Token - $($Variable.name) - found, encrypting"
+                    $NewTokenObject = [PSCustomObject]@{
+                        "Name" = $Variable.name
+                        "Description" = $Variable.Description
+                        "Value" = [PSCustomObject]@{
+                            "ID" = $Variable.value.id
+                            "SecureKey" = (ConvertTo-SecureString -AsPlainText $Variable.Value.key -Force | ConvertFrom-SecureString)
+                        }
+                        "Visibility" = $Variable.Visibility
+                        "Module" = $Variable.Module
+                        "ModuleName" = $Variable.ModuleName
+                        "Options" = $Variable.Options
+                        "Attributes" = $Variable.Attributes
+                    }
+                    $OutVars += @($NewTokenObject)
                     Write-Debug $OutVars.count
                 }
             }
@@ -470,8 +493,16 @@ Function Invoke-VariableJSONLoad
         }
         elseif (($Variable.value | gm).name -contains "SecurePass")
         {
-            Write-Debug $Variable.value.SecurePass
             $Variable.value = (New-Object System.Management.Automation.PsCredential($Variable.value.username, (ConvertTo-SecureString ($Variable.value.SecurePass))))
+        }
+        elseif ($Variable.name -match "APIKey")
+        {
+            $APIKey = [PSCustomObject]@{
+                "ID" = $Variable.value.id
+                "Key" = (New-Object System.Management.Automation.PsCredential("SecureToken", $Variable.value.key)).GetNetworkCredential().Password
+            }
+
+            $Variable.value = $APIKey
         }
     }
 
