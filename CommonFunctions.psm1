@@ -372,3 +372,108 @@ Function Search-Network
 
     return $hosts
 }
+
+Function Invoke-VariableJSONSave
+{
+    Param
+    (
+        $ModuleName,
+        $SavePath,
+        $Variables
+    )
+
+    Write-Verbose "Encrypting all senstitive information"
+
+    $OutVars = @()
+
+    foreach ($Variable in $Variables)
+    {
+        if ($Variable.value -ne $null)
+        {
+            Write-Debug "$($Variable.value.GetType().tostring())"
+            if ($Variable.value.GetType().ToString() -eq "System.Management.Automation.PSCredential")
+            {
+                Write-Debug "Credential - $($Variable.name) - found, encrypting"
+                $NewCredObject = [PSCustomObject]@{
+                    "Name" = $Variable.name
+                    "Description" = $Variable.Description
+                    "Value" = [PSCustomObject]@{
+                        "username" = $Variable.value.username
+                        "SecurePass" = ($Variable.value.password | ConvertFrom-SecureString)
+                    }
+                    "Visibility" = $Variable.Visibility
+                    "Module" = $Variable.Module
+                    "ModuleName" = $Variable.ModuleName
+                    "Options" = $Variable.Options
+                    "Attributes" = $Variable.Attributes
+                }
+                $OutVars += $NewCredObject
+                Write-Debug $OutVars.count
+            }
+            elseif ($Variable.name -match "Token")
+            {
+                if ($Variable.value -ne "")
+                {
+                    Write-Debug "API Token - $($Variable.name) - found, encrypting"
+                    $NewTokenObject = [PSCustomObject]@{
+                        "Name" = "SecureToken-$($_.name)"
+                        "Description" = $Variable.Description
+                        "Value" = (ConvertTo-SecureString -AsPlainText $_.Value -Force | ConvertFrom-SecureString)
+                        "Visibility" = $Variable.Visibility
+                        "Module" = $Variable.Module
+                        "ModuleName" = $Variable.ModuleName
+                        "Options" = $Variable.Options
+                        "Attributes" = $Variable.Attributes
+                    }
+                    $OutVars += $NewTokenObject
+                    Write-Debug $OutVars.count
+                }
+            }
+            else {
+                $OutVars += @($Variable)
+
+                Write-Debug $OutVars.count
+            }
+
+        }
+    }
+
+    Write-Verbose "Saving variables to $SavePath"
+
+    $OutVars | ConvertTo-Json -depth 10 | Set-Content $SavePath
+}
+
+Function Invoke-VariableJSONLoad
+{
+    Param
+    (
+        $LoadPath
+    )
+
+    Write-Verbose "Loading all variables from $LoadPath"
+    $JsonContent = get-content $LoadPath
+    if ($JsonContent -ne "")
+    {
+        $JsonContent | Write-Debug 
+        $Variables = $JsonContent | convertfrom-json 
+    }
+
+    foreach ($Variable in $Variables)
+    {
+        if ($Variable.Name -match "SecureToken")
+        {
+            $TokenSecure = (ConvertTo-SecureString $Variable.value)
+
+            $Variable.value = (New-Object System.Management.Automation.PsCredential("SecureToken", $TokenSecure)).GetNetworkCredential().Password
+
+            $Variable = $Variable | select @{Name="Name";Expression={$_.name -replace "SecureToken-",""}},Value
+        }
+        elseif (($Variable.value | gm).name -contains "SecurePass")
+        {
+            Write-Debug $Variable.value.SecurePass
+            $Variable.value = (New-Object System.Management.Automation.PsCredential($Variable.value.username, (ConvertTo-SecureString ($Variable.value.SecurePass))))
+        }
+    }
+
+    return $Variables
+}
