@@ -419,7 +419,7 @@ Function Invoke-VariableJSONSave
                     $NewTokenObject = [PSCustomObject]@{
                         "Name" = "SecureToken-$($_.name)"
                         "Description" = $Variable.Description
-                        "Value" = (ConvertTo-SecureString -AsPlainText $_.Value -Force | ConvertFrom-SecureString)
+                        "Value" = (ConvertTo-SecureString -AsPlainText $Variable.Value -Force | ConvertFrom-SecureString)
                         "Visibility" = $Variable.Visibility
                         "Module" = $Variable.Module
                         "ModuleName" = $Variable.ModuleName
