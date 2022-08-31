@@ -411,6 +411,40 @@ Function Invoke-VariableJSONSave
                 $OutVars += $NewCredObject
                 Write-Debug $OutVars.count
             }
+            elseif ($Variable.value.GetType().ToString() -eq "System.Object[]")
+            {
+                if ($Variable.value[0].GetType().ToString()-eq "System.Management.Automation.PSCredential")
+                {
+                    $CredArray = @()
+                    foreach ($CredObject in $Variable.value)
+                    {
+                        $NewCredObject = [PSCustomObject]@{
+                            "username" = $CredObject.username
+                            "SecurePass" = ($CredObject.password | ConvertFrom-SecureString)
+                        }
+                        $CredArray += $NewCredObject
+                    }
+
+                    $NewCredArrayObject = [PSCustomObject]@{
+                        "Name" = $Variable.name
+                        "Description" = $Variable.Description
+                        "Value" = $CredArray
+                        "Visibility" = $Variable.Visibility
+                        "Module" = $Variable.Module
+                        "ModuleName" = $Variable.ModuleName
+                        "Options" = $Variable.Options
+                        "Attributes" = $Variable.Attributes
+                    }
+
+                    $OutVars += $NewCredArrayObject
+                    Write-Debug $OutVars.count
+                }
+                else
+                {
+                    $OutVars += $Variable   
+                    Write-Debug $OutVars.count
+                }
+            }
             elseif ($Variable.name -match "Token")
             {
                 if ($Variable.value -ne "")
@@ -477,14 +511,16 @@ Function Invoke-VariableJSONLoad
     $JsonContent = get-content $LoadPath
     if ($JsonContent -ne "")
     {
-        $JsonContent | Write-Debug 
+        #$JsonContent | Write-Debug 
         $Variables = $JsonContent | convertfrom-json 
     }
 
     foreach ($Variable in $Variables)
     {
+        Write-Debug "Found variable $($Variable.name)"
         if ($Variable.Name -match "SecureToken")
         {
+            Write-Debug "Secure token found, decrypting"
             $TokenSecure = (ConvertTo-SecureString $Variable.value)
 
             $Variable.value = (New-Object System.Management.Automation.PsCredential("SecureToken", $TokenSecure)).GetNetworkCredential().Password
@@ -493,7 +529,21 @@ Function Invoke-VariableJSONLoad
         }
         elseif (($Variable.value | gm).name -contains "SecurePass")
         {
-            $Variable.value = (New-Object System.Management.Automation.PsCredential($Variable.value.username, (ConvertTo-SecureString ($Variable.value.SecurePass))))
+            Write-Debug "SecurePass found, decrypting"
+            Write-Debug "$($Variable.value.GetType())"
+            if ($Variable.value.GetType().ToString() -eq "System.Object[]")
+            {
+                Write-Debug "Credential array has been found, iterating values"
+                foreach ($CredObject in $Variable.value)
+                {
+                    $CredObject = @(New-Object System.Management.Automation.PsCredential($CredObject.username, (ConvertTo-SecureString ($CredObject.SecurePass))))
+                }
+            }
+            else
+            {
+                Write-Debug "Single Credential has been found, decrypting"
+                $Variable.value = (New-Object System.Management.Automation.PsCredential($Variable.value.username, (ConvertTo-SecureString ($Variable.value.SecurePass))))
+            }
         }
         elseif ($Variable.name -match "APIKey")
         {
