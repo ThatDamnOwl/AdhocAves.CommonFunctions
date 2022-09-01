@@ -12,7 +12,7 @@ Function Write-Log
         [string]
         $LogPath,
         [Parameter(Mandatory=$False)]
-        [string]
+        [int]
         $LogLevel
     )
 
