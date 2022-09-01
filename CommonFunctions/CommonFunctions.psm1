@@ -1,3 +1,84 @@
+##Module variables
+$GitRepoFolder = "C:\GitRepos"
+$PowershellModuleFolder = "C:\Users\abbystrixa\Documents\WindowsPowerShell\Modules"
+$SaveVaraiables = @("GitRepoFolder","PowershellModuleFolder")
+$ExcludedModules = @("Posh-SSH")
+
+$ModuleFolder = (Get-Module CommonFunctions -ListAvailable).path -replace "CommonFunctions\.psm1"
+Function Get-GitRepoFolder
+{
+    $GitRepoFolder
+}
+
+Function Get-PowershellModuleFolder
+{
+    $PowershellModuleFolder
+}
+
+Function Set-GitRepoFolder
+{
+    param
+    (
+        [Parameter(Mandatory=$true)]
+        [string]
+        $NewGitRepoFolder
+    )
+
+    if (test-path $NewGitRepoFolder)
+    {
+        set-variable -scope 1 -name GitRepoFolder -Value $NewGitRepoFolder
+    }
+    else
+    {
+        throw "Folder does not exist"
+    }
+}
+
+Function Set-PowershellModuleFolder
+{
+    param
+    (
+        [Parameter(Mandatory=$true)]
+        [string]
+        $NewPowershellModuleFolder
+    )
+
+    if (test-path $NewPowershellModuleFolder)
+    {
+        set-variable -scope 1 -name GitRepoFolder -Value $NewGitRepoFolder
+    }
+    else 
+    {
+        throw "Folder does not exist"    
+    }
+}
+
+Function Invoke-CommonFunctionsVariableLoad
+{
+    $VariablePath = "$ModuleFolder\$($ENV:Username)-Variables.json"
+    if (test-path $VariablePath)
+    {
+        Write-Verbose "Importing variables from $VariablePath"
+        $Variables = Invoke-VariableJSONLoad $VariablePath
+
+        foreach ($Variable in $Variables)
+        {
+            Write-Debug "Importing $($Variable.value.GetType()) variable $($Variable.name)"
+            set-variable -name $Variable.name -Value:$Variable.Value -scope 1
+        }
+    }
+}
+
+Function Invoke-CommonFunctionsVariableSave
+{
+    $AllVariables = Get-Variable -scope 1 | where {$_.name -in $SaveVaraiables}
+    $SavePath = "$ModuleFolder\$($ENV:Username)-Variables.json"
+
+    Write-Debug "Starting save job to $SavePath"
+
+    Invoke-VariableJSONSave -ModuleName "PowerStats" -SavePath $SavePath -Variables $AllVariables -verbosepreference:$VerbosePreference
+}
+
 Function Write-Log
 {
     param
@@ -129,7 +210,6 @@ Function Check-ModuleDependencies
 
     return $ModulesExist
 }
-
 
 ## Everything below this line is going to be replaced with a significantly better C# module eventually
 
@@ -560,7 +640,7 @@ Function Invoke-VariableJSONLoad
 
             Write-Debug $SecureKey
 
-            $APIKey = [PSCustomObject]@{
+            $APIKey = @{
                 "ID" = $Variable.value.id
                 "Key" = (New-Object System.Management.Automation.PsCredential("SecureToken",$SecureKey)).GetNetworkCredential().Password
             }
@@ -571,3 +651,101 @@ Function Invoke-VariableJSONLoad
 
     return $Variables
 }
+
+Function Push-GitModulesToPowershell
+{
+    param
+    (
+        [switch]
+        $Force
+    )
+
+    $Modules = (gci $GitRepoFolder)
+
+    if ($Force)
+    {
+        foreach ($Module in $Modules)
+        {
+            if (Get-Module $Module.Name)
+            {
+                Write-Verbose "Removing Module - $($Module.name)"
+                Remove-Module $Module.Name
+            }
+            else
+            {
+                Write-Verbose "Module $($Module.name) is not loaded"
+            }
+        }
+    }
+
+    foreach ($Module in $Modules)
+    {   
+
+        if ($Module.name -ne "CommonFunctions")
+        {
+            Write-Verbose "Module $($Module.name) is being moved"
+
+            $CompiledModulePath = "$($Module.FullName)\$($Module.name)"
+            $TargetModulePath = "$PowershellModuleFolder"
+            if (test-path ($CompiledModulePath))
+            {
+                try {
+                    Copy-Item $CompiledModulePath $TargetModulePath -recurse -force -erroraction stop
+                }
+                catch
+                {
+                    if ($Error[0].Exception.Message -match "used by another process")
+                    {
+                        Write-Warning "$($Module.name) is currently locked by another process, please unload it from powershell and try again"
+                    }
+                    else
+                    {
+                        Write-Warning "Unknown exception occured while copying $($Error[0].Exception.Message)"
+                    }
+                }
+            }
+        }
+
+    }
+
+    if ($Force)
+    {
+        foreach ($Module in $Modules)
+        {
+            import-module $Module.name -force
+        }
+    }
+}
+
+Function Count-LinesOfCode
+{
+    $Modules = gci $GitRepoFolder
+    $AllModules = @()
+    foreach ($Module in $Modules)
+    {
+        $ModuleCount = 0
+        if ($Module.name -notin $ExcludedModules)
+        {
+            $ModuleFiles = gci $Module.fullname -recurse | where {$_.name -match "(psm1|ps1|sql|cs|py)"} | where {$_.mode -notmatch "d"}
+            $AllFileStats = @()
+            foreach ($File in $ModuleFiles)
+            {
+                $FileStats = Get-Content $File.fullname | Measure-Object -Line -Character -Word
+                $FileStats | add-member -type NoteProperty -value ($File.FullName -replace [regex]::Escape($Module.fullname)) -Name Path
+                $AllFileStats += $FileStats
+                $ModuleCount += $FileStats.Lines
+            }
+
+            $ModuleInfo = [PSCustomObject]@{
+                ModuleName = $Module.name
+                TotalLines = $ModuleCount
+                FileDetails = $AllFileStats
+            }
+            $AllModules += $ModuleInfo
+        }
+    }
+
+    return $AllModules
+}
+
+Invoke-CommonFunctionsVariableLoad
