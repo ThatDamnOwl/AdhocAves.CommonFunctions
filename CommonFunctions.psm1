@@ -534,10 +534,18 @@ Function Invoke-VariableJSONLoad
             if ($Variable.value.GetType().ToString() -eq "System.Object[]")
             {
                 Write-Debug "Credential array has been found, iterating values"
+
+                $CredArray = @()
+
                 foreach ($CredObject in $Variable.value)
                 {
-                    $CredObject = @(New-Object System.Management.Automation.PsCredential($CredObject.username, (ConvertTo-SecureString ($CredObject.SecurePass))))
+                    Write-Debug "$($CredObject.UserName) object is being decrypted"
+                    $CredArray += @(New-Object System.Management.Automation.PsCredential($CredObject.username, (ConvertTo-SecureString ($CredObject.SecurePass))))
                 }
+
+                $CredArray | Write-Debug
+
+                $Variable.value = $CredArray
             }
             else
             {
