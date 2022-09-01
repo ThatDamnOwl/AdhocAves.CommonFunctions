@@ -57,7 +57,37 @@ Aliases: LogToFile
 Required: false
 Position: 0
 Default value: None
-Accept pipeline input: Falses
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -LogPath
+Send Log message to file
+
+```yaml
+Type: String
+Parameter Sets: LogPath
+Aliases: LogPath
+
+Required: false
+Position: 0
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -LogLevel
+Send Log message to file
+
+```yaml
+Type: Int
+Parameter Sets: LogLevel
+Aliases: LogLevel
+
+Required: false
+Position: 0
+Default value: None
+Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
