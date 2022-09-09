@@ -669,7 +669,7 @@ Function Push-GitModulesToPowershell
             if (Get-Module $Module.Name)
             {
                 Write-Verbose "Removing Module - $($Module.name)"
-                Remove-Module $Module.Name
+                ##Remove-Module $Module.Name
             }
             else
             {
@@ -712,7 +712,7 @@ Function Push-GitModulesToPowershell
     {
         foreach ($Module in $Modules)
         {
-            import-module $Module.name -force
+            ##import-module $Module.name -force
         }
     }
 }
