@@ -77,7 +77,7 @@ Accept wildcard characters: False
 ```
 
 ### -LogLevel
-Send Log message to file
+The log level of the message
 
 ```yaml
 Type: Int
@@ -98,7 +98,7 @@ This cmdlet supports no common parameters
 
 ### String
 ### Int
-### Boolea
+### Boolean
 ## OUTPUTS
 
 ## NOTES
