@@ -5,6 +5,7 @@ $SaveVaraiables = @("GitRepoFolder","PowershellModuleFolder")
 $ExcludedModules = @("Posh-SSH")
 
 $ModuleFolder = (Get-Module CommonFunctions -ListAvailable).path -replace "CommonFunctions\.psm1"
+
 Function Get-GitRepoFolder
 {
     $GitRepoFolder
@@ -107,7 +108,7 @@ Function Write-Log
     }
 }
 
-Function Check-ConcurrentSessions
+Function Invoke-ConcurrentSessionCheck
 {
     while ((get-process powershell).count -gt $MaxConcurrentSessions)
     {
@@ -192,7 +193,7 @@ Function ConvertFrom-FixedWidthTable
     return $pTable
 }
 
-Function Check-ModuleDependencies
+Function Confirm-ModuleDependencies
 {
     param
     (
@@ -717,7 +718,7 @@ Function Push-GitModulesToPowershell
     }
 }
 
-Function Count-LinesOfCode
+Function Measure-LinesOfCode
 {
     $Modules = gci $GitRepoFolder
     $AllModules = @()
