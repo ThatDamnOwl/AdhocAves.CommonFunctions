@@ -12,7 +12,7 @@
 RootModule = 'AdhocAves.CommonFunctions.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.1'
+ModuleVersion = '0.1.2'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -24,10 +24,10 @@ GUID = 'f87949e7-1648-476a-95db-ca9f06bd7321'
 Author = 'AbbyStrixa'
 
 # Company or vendor of this module
-CompanyName = 'Unknown'
+CompanyName = 'AdhocAves'
 
 # Copyright statement for this module
-Copyright = '2023 AbbyStrixa.'
+Copyright = '2023 AbbyStrixa. Under the Unlicense. please refer to <https://unlicense.org>'
 
 # Description of the functionality provided by this module
 Description = 'Common functions used across multiple other modules produced by Abby Strixa.'
