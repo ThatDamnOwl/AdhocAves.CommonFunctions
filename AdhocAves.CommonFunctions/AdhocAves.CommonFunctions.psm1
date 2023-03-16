@@ -66,7 +66,7 @@ Function Set-PowershellModuleFolder
 
     if (test-path $NewPowershellModuleFolder)
     {
-        set-variable -scope 1 -name GitRepoFolder -Value $NewGitRepoFolder
+        set-variable -scope 1 -name PowershellModuleFolder -Value $NewPowershellModuleFolder
     }
     else 
     {
@@ -76,17 +76,14 @@ Function Set-PowershellModuleFolder
 
 Function Invoke-CommonFunctionsVariableLoad
 {
-    $VariablePath = "Common-$($ENV:Username)-Variables.json"
-    if (test-path $VariablePath)
-    {
-        Write-Verbose "Importing variables from $VariablePath"
-        $Variables = Invoke-VariableJSONLoad $VariablePath
+    
+    Write-Verbose "Importing variables from Common-$($ENV:Username)-Variables.json"
 
-        foreach ($Variable in $Variables)
-        {
-            Write-Debug "Importing $($Variable.value.GetType()) variable $($Variable.name)"
-            set-variable -name $Variable.name -Value:$Variable.Value -scope 1
-        }
+    $Variables = Invoke-VariableJSONLoad "Common-$($ENV:Username)-Variables.json"
+    foreach ($Variable in $Variables)
+    {
+        Write-Debug "Importing $($Variable.value.GetType()) variable $($Variable.name)"
+        set-variable -name $Variable.name -Value:$Variable.Value -scope 1
     }
 }
 
@@ -685,25 +682,36 @@ Function Push-GitModulesToPowershell
     param
     (
         [switch]
-        $Force
+        $OutputCommands
     )
 
     $Modules = (gci $GitRepoFolder)
 
-    if ($Force)
+    $ModulesLoaded = $false
+
+    if ($OutputCommands)
     {
-        foreach ($Module in $Modules)
+        Write-Host "The following modules need to be removed first"
+        foreach ($Module in ($Modules | where {$_.name -notmatch "CommonFunctions"}))
         {
             if (Get-Module $Module.Name)
             {
-                Write-Verbose "Removing Module - $($Module.name)"
-                ##Remove-Module $Module.Name
+                $ModulesLoaded = $True
+                Write-Host "remove-module $(Module.Name) -force"
             }
             else
             {
                 Write-Verbose "Module $($Module.name) is not loaded"
             }
-        }
+        }       
+    }
+
+
+
+
+    if ($ModulesLoaded)
+    {
+        Throw "Please unload the above modules first before continuing"
     }
 
     foreach ($Module in $Modules)
@@ -736,11 +744,12 @@ Function Push-GitModulesToPowershell
 
     }
 
-    if ($Force)
+    if ($OutputCommands)
     {
+        Write-Host "The following commands can now be run"
         foreach ($Module in $Modules)
         {
-            ##import-module $Module.name -force
+            Write-Host "import-module $($Module.name) -force"
         }
     }
 }
