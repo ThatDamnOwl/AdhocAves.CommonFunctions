@@ -1,8 +1,9 @@
 ##Module variables
 $GitRepoFolder = "C:\GitRepos"
 $PowershellModuleFolder = "C:\Users\abbystrixa\Documents\WindowsPowerShell\Modules"
-$SaveVaraiables = @("GitRepoFolder","PowershellModuleFolder")
+$SaveVaraiables = @("GitRepoFolder","PowershellModuleFolder","BasePath")
 $ExcludedModules = @("Posh-SSH")
+$BasePath = "$ENV:USERPROFILE\AppData\Local\AdhocAves\"
 
 $ModuleFolder = (Get-Module CommonFunctions -ListAvailable).path -replace "CommonFunctions\.psm1"
 
@@ -35,6 +36,25 @@ Function Set-GitRepoFolder
     }
 }
 
+Function Set-BasePath
+{
+    param
+    (
+        [Parameter(Mandatory=$true)]
+        [string]
+        $NewBasePath
+    )
+
+    if (test-path $NewBasePath)
+    {
+        set-variable -scope 1 -name GitRepoFolder -Value $NewBasePath
+    }
+    else
+    {
+        throw "Folder does not exist"
+    }
+}
+
 Function Set-PowershellModuleFolder
 {
     param
@@ -56,7 +76,7 @@ Function Set-PowershellModuleFolder
 
 Function Invoke-CommonFunctionsVariableLoad
 {
-    $VariablePath = "$ModuleFolder\$($ENV:Username)-Variables.json"
+    $VariablePath = "Common-$($ENV:Username)-Variables.json"
     if (test-path $VariablePath)
     {
         Write-Verbose "Importing variables from $VariablePath"
@@ -73,11 +93,11 @@ Function Invoke-CommonFunctionsVariableLoad
 Function Invoke-CommonFunctionsVariableSave
 {
     $AllVariables = Get-Variable -scope 1 | where {$_.name -in $SaveVaraiables}
-    $SavePath = "$ModuleFolder\$($ENV:Username)-Variables.json"
+    $SaveFile = "Common-$($ENV:Username)-Variables.json"
 
-    Write-Debug "Starting save job to $SavePath"
+    Write-Debug "Starting save job to $SaveFile"
 
-    Invoke-VariableJSONSave -ModuleName "PowerStats" -SavePath $SavePath -Variables $AllVariables -verbosepreference:$VerbosePreference
+    Invoke-VariableJSONSave -ModuleName "PowerStats" -SaveFile $SaveFile -Variables $AllVariables -verbosepreference:$VerbosePreference
 }
 
 Function Write-Log
@@ -459,14 +479,20 @@ Function Invoke-VariableJSONSave
     Param
     (
         $ModuleName,
-        $SavePath,
+        $SaveFile,
         $Variables
     )
 
     Write-Verbose "Encrypting all senstitive information"
 
-    $OutVars = @()
+    $SaveFile = "$BasePath\$SaveFile"
 
+    if (-not (test-path $BasePath))
+    {
+        new-item -type Directory -path $SaveFile
+    }
+
+    $OutVars = @()
     foreach ($Variable in $Variables)
     {
         Write-Debug $Variable.name
@@ -576,19 +602,21 @@ Function Invoke-VariableJSONSave
         }
     }
 
-    Write-Verbose "Saving variables to $SavePath"
+    Write-Verbose "Saving variables to $SaveFile"
 
-    $OutVars | ConvertTo-Json -depth 10 | Set-Content $SavePath
+    $OutVars | ConvertTo-Json -depth 10 | Set-Content $SaveFile
 }
 
 Function Invoke-VariableJSONLoad
 {
     Param
     (
-        $LoadPath
+        $LoadFile
     )
 
-    Write-Verbose "Loading all variables from $LoadPath"
+    $LoadPath = "$BasePath\$LoadFile"
+
+    Write-Verbose "Loading all variables from $LoadFile"
     $JsonContent = get-content $LoadPath
     if ($JsonContent -ne "")
     {
