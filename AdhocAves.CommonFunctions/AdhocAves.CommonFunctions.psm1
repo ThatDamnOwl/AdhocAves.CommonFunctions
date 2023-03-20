@@ -76,7 +76,7 @@ Function Set-PowershellModuleFolder
 
 Function Invoke-CommonFunctionsVariableLoad
 {
-    
+
     Write-Verbose "Importing variables from Common-$($ENV:Username)-Variables.json"
 
     $Variables = Invoke-VariableJSONLoad "Common-$($ENV:Username)-Variables.json"
@@ -697,7 +697,7 @@ Function Push-GitModulesToPowershell
             if (Get-Module $Module.Name)
             {
                 $ModulesLoaded = $True
-                Write-Host "remove-module $(Module.Name) -force"
+                Write-Host "remove-module $($Module.Name) -force"
             }
             else
             {
@@ -783,6 +783,110 @@ Function Measure-LinesOfCode
     }
 
     return $AllModules
+}
+
+Function Get-JSONArray
+{
+    param 
+    (
+        [Parameter(Mandatory=$true)]
+        [object[]]
+        $InputArray
+    )
+
+    $JSONArray = "["
+
+    foreach ($Input in $InputArray)
+    {
+        $JSONArray += """$Input"", "
+    }
+
+    $JSONArray = $JSONArray.Substring(0,$JSONArray.Length - 2)
+
+    $JSONArray += "]"
+
+    return $JSONArray
+}
+
+Function Get-PageinatedList
+{
+    param
+    (
+        [Parameter(Mandatory=$true)]
+        [String]
+        $ListURI, 
+        [Parameter(Mandatory=$false)]
+        [ValidateRange(10,100)]
+        [int]
+        $PageSize = 100,
+        [Parameter(Mandatory=$false)]
+        [ValidateRange(1,100)]
+        [int]
+        $StartPage = 1,
+        $WebSession
+    )
+
+
+    $Results = @()
+    $Page = $StartPage
+
+    $Operator = "?"
+
+    if ($ListURI -match "\?")
+    {
+        $Operator = "&"
+    }
+
+    Do 
+    {
+
+        $WebRequest = Invoke-WebRequest -uri "$($ListURI)$($Operator)limit=$PageSize&page=$Page" -WebSession $WebSession
+        
+        $Results += ConvertFrom-Json $WebRequest.content
+        
+        $Page++
+        $PageLimit = [int]$WebRequest.Headers.'X-Page-Limit'[0]
+        $PagePage = [int]$WebRequest.Headers.'X-Page-Page'[0]
+        $PageTotal = [int]$WebRequest.Headers.'X-Page-Total'[0]
+        if ($PageLimit -gt 0)
+        {
+            $GettingPages = ($Page -le [math]::Ceiling($PageTotal/$PageLimit))        
+            Write-Log "Retrieved $PagePage of $([math]::Ceiling($PageTotal/$PageLimit)), there is $PageTotal entries, the pages are $PageLimit Items Long" 
+        } 
+        else 
+        {
+            $GettingPages = $false
+            Write-Log "Returned no clients"
+        } 
+    }
+    while ($GettingPages)
+
+    return $Results
+}
+
+Function Get-SeperatedMAC
+{
+    param
+    (
+        [Parameter(Mandatory=$true,ValueFromPipeline)]
+        [String[]]
+        $MACStrings,
+        $Seperator = "-"
+    )
+    $ReturnMacs = @()
+    foreach ($MACString in $MACStrings)
+    {
+        #write-host $mac
+        $MACString = $MACString -replace "[:-.]"
+
+        for ($x = 10; $x -gt 0; $x = $x - 2)
+        {
+            $MACString = $MACString.Insert($x,$Seperator)
+        }
+
+        $ReturnMacs += $MACString
+    }
+    return $ReturnMacs
 }
 
 Invoke-CommonFunctionsVariableLoad
